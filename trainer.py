@@ -1,5 +1,5 @@
 from time import time
-
+from concurrent.futures import ThreadPoolExecutor
 from random import sample, randint
 from itertools import tee
 
@@ -25,30 +25,26 @@ class Simulation:
 
         self.best_distances = []
 
-    def run_simulation(self, fig=None):
+    def run_simulation(self):
         print('--- STARTING SIMULATION --- ')
 
         for generation_number in range(1, NUM_GENERATIONS+1):
             print(f'\nGeneration number {generation_number}')
-            new_generation = Generation()
-            new_generation.neighborhood = self.neighborhood
-            new_generation.trainers = self.get_new_trainers(self.generation)
-            new_generation.run_trainers()
-            self.generation = new_generation
+            self.generation = Generation(self.neighborhood, self.get_new_trainers(self.generation))
+            self.generation.run_trainers()
 
-            # print('List of distances: ', [int(t.distance) for t in self.generation.trainers])
-            best_trainer = self.generation.get_best_trainer()
-            
-            best_distance = best_trainer.distance
+            self.best_trainer = self.generation.get_best_trainer()
+            best_distance = self.best_trainer.distance
+
+            self.worst_trainer = self.generation.get_worst_trainer()
+            worst_distance = self.worst_trainer.distance
+
             print(f'Best of Generation {generation_number}: {best_distance}')
-            print(f'Worst of Generation {generation_number}: {self.generation.get_worst_trainer().distance}')
+            print(f'Worst of Generation {generation_number}: {worst_distance}')
             self.best_distances.append(best_distance)
 
             # if self.has_converged():
             #     break
-
-        self.best_trainer = self.generation.get_best_trainer()
-        self.worst_trainer = self.generation.get_worst_trainer()
 
     def has_converged(self):
         if not self.best_distances:
@@ -112,8 +108,9 @@ class Simulation:
             swap_allels(randint(0, len(chromosome)-1), randint(0, len(chromosome)-1))
 
 class Generation:
-    trainers = []
-    neighborhood = None
+    def __init__(self, neighborhood=None, trainers=[]):
+        self.trainers = trainers
+        self.neighborhood = neighborhood
 
     def setup_random_generation(self, num_trainers):
         for _ in range(num_trainers):
@@ -169,30 +166,42 @@ class Trainer:
     def printable_path(self):
         return [location.name for location in self.path]
 
-    def plot_path(self):
+    def plot_path(self, axes):
         x = [location.x_coord for location in self.path]
         y = [location.y_coord for location in self.path]
-        pyplot.plot(x, y)
+        axes.plot(x, y)
+
 
 if __name__ == '__main__':
     neighborhood = Neighborhood()
 
     fig = pyplot.figure()
-    axes = fig.add_subplot(111)
-    neighborhood.plot_map(axes)
+    base_axes = fig.add_subplot(111)
+    neighborhood.plot_map(base_axes)
 
     generation = Generation()
     generation.neighborhood = neighborhood
     generation.setup_random_generation(POPULATION_AMOUNT)
     sim = Simulation(neighborhood, generation)
+
+    def animate(i):
+        base_axes.clear()
+        neighborhood.plot_map(base_axes)
+        sim.best_trainer.plot_path(base_axes)
+        base_axes.plot()
     
     start = time()
-    sim.run_simulation(fig)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(sim.run_simulation)
+        
+        from matplotlib import animation
+        print('----HERE-----')
+        anim = animation.FuncAnimation(fig, animate, interval=1000)
+        pyplot.show()
     end = time()
     
     print("Elapsed time: ", end-start)
     print("Best path: ", [l.name for l in sim.best_trainer.path])
 
     neighborhood.configure_plot(pyplot)
-    sim.best_trainer.plot_path()
-    pyplot.show()
+    sim.best_trainer.plot_path(base_axes)
