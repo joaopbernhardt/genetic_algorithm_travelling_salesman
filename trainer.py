@@ -4,6 +4,21 @@ from itertools import tee
 import settings
 
 
+class cached_property:
+    def __init__(self, function):
+        self.function = function
+
+    def __get__(self, obj, cls):
+
+        function_name = self.function.__name__
+        cached_name = 'cached_'+function_name
+
+        if not hasattr(obj, cached_name):
+            setattr(obj, cached_name, self.function(obj))
+
+        return getattr(obj, cached_name)
+
+
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
@@ -26,28 +41,28 @@ class Generation:
         for trainer in self.trainers:
             trainer.calculate_distance()
 
-    @property
+    @cached_property
     def total_distance(self):
         return sum([trainer.distance for trainer in self.trainers])
 
-    @property
+    @cached_property
     def total_fitness(self):
         return sum([trainer.fitness for trainer in self.trainers])
 
-    @property
+    @cached_property
     def ranked_trainers(self):
         ranked_trainers = list(self.trainers)
         ranked_trainers.sort(key=lambda trainer: trainer.distance)
         return ranked_trainers
 
-    @property
+    @cached_property
     def individual_probabilities(self):
         probability_dist = []
         for trainer in self.ranked_trainers:
             probability_dist.append(trainer.fitness/self.total_fitness)
         return probability_dist
 
-    @property
+    @cached_property
     def cumulative_probabilities(self):
         probs = [0]
         
@@ -88,7 +103,7 @@ class Trainer:
     def set_random_path(self):
         self.path = sample(self.neighborhood.locations, settings.NUM_LOCATIONS)
 
-    @property
+    @cached_property
     def full_path(self):
         return [self.neighborhood.hq, *self.path, self.neighborhood.hq]
 
@@ -113,11 +128,11 @@ class Trainer:
 
         self.distance = distance
 
-    @property
+    @cached_property
     def fitness(self):
         return 1/self.distance
 
-    @property
+    @cached_property
     def printable_path(self):
         return [location.name for location in self.full_path]
 
