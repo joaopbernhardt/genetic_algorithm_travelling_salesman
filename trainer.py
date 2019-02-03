@@ -75,23 +75,22 @@ class Trainer:
 
     def set_random_path(self):
         self.path = sample(self.neighborhood.locations, settings.NUM_LOCATIONS)
-        self.path.insert(0, self.neighborhood.hq)
-        self.path.append(self.neighborhood.hq)
+
+    @property
+    def full_path(self):
+        return [self.neighborhood.hq, *self.path, self.neighborhood.hq]
 
     def calculate_distance(self):
         if not self.path:
             raise Exception('Trainer path is not set.')
         
         distance = 0
-        for location_a, location_b in pairwise(self.path):
+        for location_a, location_b in pairwise(self.full_path):
             distance += self.neighborhood.distance_between(location_a, location_b)
 
         def should_penalize():
-            if not len(set(self.path)) == settings.NUM_LOCATIONS+1:
-                return True
-            elif not 'oowlish' in self.path[0].name.lower():
-                return True
-            elif not 'oowlish' in self.path[-1].name.lower():
+            if not len(set(self.path)) == settings.NUM_LOCATIONS:
+                # Path has to contain all locations
                 return True
             return False
         
@@ -108,9 +107,9 @@ class Trainer:
 
     @property
     def printable_path(self):
-        return [location.name for location in self.path]
+        return [location.name for location in self.full_path]
 
     def plot_path(self, axes):
-        x = [location.x_coord for location in self.path]
-        y = [location.y_coord for location in self.path]
+        x = [location.x_coord for location in self.full_path]
+        y = [location.y_coord for location in self.full_path]
         axes.plot(x, y)

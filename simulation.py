@@ -60,6 +60,7 @@ class Simulation:
         new_trainers.append(best_previous_trainer)
 
         if len(set([str(t.printable_path) for t in generation.trainers])) == 1:
+            # TODO: better if above
             print('Population has converged. Finishing simulation.')
             exit()
 
@@ -97,24 +98,17 @@ class Simulation:
         chromosome_a = trainer_a.path
         chromosome_b = trainer_b.path
 
-        random_slice = [randint(1, length-1), randint(1, length-1)]
+        random_slice = [randint(0, length), randint(0, length)]
         random_slice.sort()
         
-        
         def get_child_chromosome(base_parent, secondary_parent):
-            child_chromosome = [None] * (settings.NUM_LOCATIONS + 2)
+            child_chromosome = [None] * settings.NUM_LOCATIONS
             child_chromosome[random_slice[0]:random_slice[1]] = base_parent[random_slice[0]:random_slice[1]]
 
             for index, allel in enumerate(child_chromosome):
                 if allel:
                     continue
-                if index == 0:
-                    child_chromosome[index] = base_parent[index]
-                elif index == settings.NUM_LOCATIONS+1:
-                    child_chromosome[index] = base_parent[index]
-                    break
-                else:
-                    child_chromosome[index] = next(allel_b for allel_b in secondary_parent if not allel_b in child_chromosome)
+                child_chromosome[index] = next(allel_b for allel_b in secondary_parent if not allel_b in child_chromosome)
             
             return child_chromosome
 
@@ -125,9 +119,9 @@ class Simulation:
             chromosome[position1], chromosome[position2] = chromosome[position2], chromosome[position1]
         
         random_int = randint(0, 100)
-        # if random_int <= settings.CHANCE_SEQUENTIAL_SWAP_MUTATION:
-        #     base_index = randint(1, len(chromosome)-1)
-        #     swap_allels(base_index - 1, base_index)
+        if random_int <= settings.CHANCE_SEQUENTIAL_SWAP_MUTATION:
+            base_index = randint(1, len(chromosome)-1)
+            swap_allels(base_index - 1, base_index)
         if random_int <= settings.CHANCE_RANDOM_SWAP_MUTATION:
             swap_allels(randint(1, len(chromosome)-2), randint(1, len(chromosome)-2))
 
