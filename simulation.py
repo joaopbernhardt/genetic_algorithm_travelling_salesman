@@ -19,20 +19,26 @@ class Simulation:
         print('--- STARTING SIMULATION --- ')
 
         for generation_number in range(1, settings.NUM_GENERATIONS+1):
-            print(f'\nGeneration number {generation_number}')
             self.generation = Generation(self.neighborhood, self.get_new_trainers(self.generation))
 
             this_best_trainer = self.generation.get_best_trainer()
             this_best_distance = this_best_trainer.distance
+            
             if not self.best_distances or this_best_distance < self.best_distance:
                 self.best_distance = this_best_distance
                 self.best_trainer = this_best_trainer
-
-            print(f'Best across generations: {self.best_distance}')
-            print(f'Best of Generation {generation_number}: {this_best_distance}')
-            print(f'List of distances: {["{0:.2f}".format(t.distance) for t in self.generation.ranked_trainers]}')
+            
             self.best_distances.append(this_best_distance)
 
+            if generation_number == settings.NUM_GENERATIONS:
+                print(f'\n\n--- END OF SIMULATION ---')
+                print(f"Best trainer's distance: {'{0:.2f}m'.format(self.best_distance)}")
+                print(f"Best trainer's path: {self.best_trainer.printable_path}")
+            elif generation_number%(settings.NUM_GENERATIONS/100) == 0:
+                print(f'\nGeneration number {generation_number}')
+                print(f'Best across generations: {"{0:.2f}m".format(self.best_distance)}')
+                print(f'Best of generation {generation_number}: {"{0:.2f}m".format(this_best_distance)}')
+                print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_trainers]}')
             # if self.has_converged():
                 # break
 

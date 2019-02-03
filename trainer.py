@@ -47,14 +47,23 @@ class Generation:
     @cached_property
     def ranked_trainers(self):
         ranked_trainers = list(self.trainers)
-        ranked_trainers.sort(key=lambda trainer: trainer.distance)
+        ranked_trainers.sort(key=lambda trainer: trainer.fitness, reverse=True)
         return ranked_trainers
 
     @cached_property
     def individual_probabilities(self):
         probability_dist = []
-        for trainer in self.ranked_trainers:
-            probability_dist.append(trainer.fitness/self.total_fitness)
+        if "roulette" in settings.SELECTION_METHOD.lower():
+            for trainer in self.ranked_trainers:
+                probability_dist.append(trainer.fitness/self.total_fitness)
+        else:
+            raise Exception('Invalid selection method.')
+        # TODO: fix linear rank probabilities below
+        # elif "rank" in settings.SELECTION_METHOD.lower():
+        #     total = sum([i for i in range(1, len(self.trainers)+1)])
+        #     for index, trainer in enumerate(self.ranked_trainers):
+        #         probability_dist.append((index+1)/total)
+        
         return probability_dist
 
     @cached_property
@@ -65,7 +74,6 @@ class Generation:
         for individual_prob in self.individual_probabilities:
             probs.append(individual_prob + probs[i])
             i += 1
-
         return probs
 
     def get_best_trainer(self):
