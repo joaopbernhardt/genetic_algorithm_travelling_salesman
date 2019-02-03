@@ -32,7 +32,7 @@ class Simulation:
 
             print(f'Best across generations: {self.best_distance}')
             print(f'Best of Generation {generation_number}: {this_best_distance}')
-            print(f'List of distances: {[int(t.distance) for t in self.generation.ranked_trainers]}')
+            print(f'List of distances: {["{0:.2f}".format(t.distance) for t in self.generation.ranked_trainers]}')
             self.best_distances.append(this_best_distance)
 
             # if self.has_converged():
@@ -56,8 +56,8 @@ class Simulation:
     def get_new_trainers(self, generation):
         new_trainers = []
 
-        best_previous_trainer = generation.get_best_trainer()
-        new_trainers.append(best_previous_trainer)
+        if settings.ELITE_AMOUNT:
+            new_trainers.extend(generation.get_elite(settings.ELITE_AMOUNT))
 
         if len(set([str(t.printable_path) for t in generation.trainers])) == 1:
             # TODO: better if above

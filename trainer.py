@@ -66,6 +66,18 @@ class Generation:
         max_distance = max([trainer.distance for trainer in self.trainers])
         return next(trainer for trainer in self.trainers if trainer.distance == max_distance)
 
+    def get_elite(self, amount):
+        """
+        Chooses the best unique trainers (different paths)
+        """
+        elite = []
+        for trainer in self.ranked_trainers:
+            if len(elite) == amount:
+                break
+            if not trainer.path in [t.path for t in elite]:
+                elite.append(trainer)
+        return elite
+
 
 class Trainer:
 
