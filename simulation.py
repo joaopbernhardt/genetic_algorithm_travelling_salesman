@@ -1,6 +1,6 @@
 from time import time
 from concurrent.futures import ThreadPoolExecutor
-from random import randint, random
+from random import randint, random, shuffle
 
 from matplotlib import pyplot, animation
 
@@ -109,7 +109,6 @@ class Simulation:
                 if allel:
                     continue
                 child_chromosome[index] = next(allel_b for allel_b in secondary_parent if not allel_b in child_chromosome)
-            
             return child_chromosome
 
         return get_child_chromosome(chromosome_a, chromosome_b), get_child_chromosome(chromosome_b, chromosome_a)
@@ -118,12 +117,14 @@ class Simulation:
         def swap_allels(position1, position2):
             chromosome[position1], chromosome[position2] = chromosome[position2], chromosome[position1]
         
-        random_int = randint(0, 100)
-        if random_int <= settings.CHANCE_SEQUENTIAL_SWAP_MUTATION:
+        r = random()
+        if r <= settings.CHANCE_SHUFFLE_MUTATION:
+            shuffle(chromosome)
+        elif r <= settings.CHANCE_SEQUENTIAL_SWAP_MUTATION:
             base_index = randint(1, len(chromosome)-1)
-            swap_allels(base_index - 1, base_index)
-        if random_int <= settings.CHANCE_RANDOM_SWAP_MUTATION:
-            swap_allels(randint(1, len(chromosome)-2), randint(1, len(chromosome)-2))
+            swap_allels(base_index-1, base_index)
+        elif r <= settings.CHANCE_RANDOM_SWAP_MUTATION:
+            swap_allels(randint(0, len(chromosome)-1), randint(0, len(chromosome)-1))
 
 
 if __name__ == '__main__':
