@@ -11,7 +11,6 @@ from city import Neighborhood
 class Simulation:
     def __init__(self, neighborhood, initial_generation):
         self.generation = initial_generation
-        self.generation.run_trainers()
         self.neighborhood = neighborhood
 
         self.best_distances = []
@@ -22,7 +21,6 @@ class Simulation:
         for generation_number in range(1, settings.NUM_GENERATIONS+1):
             print(f'\nGeneration number {generation_number}')
             self.generation = Generation(self.neighborhood, self.get_new_trainers(self.generation))
-            self.generation.run_trainers()
 
             this_best_trainer = self.generation.get_best_trainer()
             this_best_distance = this_best_trainer.distance

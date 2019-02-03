@@ -7,16 +7,7 @@ from matplotlib import pyplot
 from settings import NUM_LOCATIONS, DOG_NAME_LIST
 
 
-class TwoDimensionalMap:
-    height = 0
-    width = 0
-
-
 class Location:
-    name = ""
-    x_coord = None
-    y_coord = None    
-
     def __init__(self, name, x, y):
         self.name = name
         self.x_coord = x
@@ -24,13 +15,12 @@ class Location:
 
 
 class Neighborhood:
-    locations = []
-    height = 0
-    width = 0
 
     def __init__(self, width=100, height=100, num_locations=NUM_LOCATIONS):
         self.width = width
         self.height = height
+        self.locations = []
+        self.cached_distances = {}
 
         randomized_names = sample(DOG_NAME_LIST, num_locations)
 
@@ -91,12 +81,16 @@ class Neighborhood:
         plot.ylim = 0, 100
         plot.yticks([0, 25, 50, 75, 100])
 
-    @staticmethod
-    def distance_between(location_a, location_b):
+    def distance_between(self, location_a, location_b):
+        cache_name = location_a.name+location_b.name
+        if cache_name in self.cached_distances:
+            return self.cached_distances[cache_name]
+        
         x_a, y_a = location_a.x_coord, location_a.y_coord
         x_b, y_b = location_b.x_coord, location_b.y_coord
         
-        return sqrt((x_a-x_b)**2 + (y_a-y_b)**2)
+        self.cached_distances[cache_name] = sqrt((x_a-x_b)**2 + (y_a-y_b)**2)
+        return self.cached_distances[cache_name]
 
 
 if __name__ == "__main__":

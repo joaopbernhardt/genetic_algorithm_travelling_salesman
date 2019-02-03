@@ -10,8 +10,7 @@ class cached_property:
 
     def __get__(self, obj, cls):
 
-        function_name = self.function.__name__
-        cached_name = 'cached_'+function_name
+        cached_name = 'cached_'+self.function.__name__
 
         if not hasattr(obj, cached_name):
             setattr(obj, cached_name, self.function(obj))
@@ -36,10 +35,6 @@ class Generation:
             trainer = Trainer(self.neighborhood)
             trainer.set_random_path()
             self.trainers.append(trainer)
-
-    def run_trainers(self):
-        for trainer in self.trainers:
-            trainer.calculate_distance()
 
     @cached_property
     def total_distance(self):
@@ -100,14 +95,12 @@ class Trainer:
         self.neighborhood = neighborhood
         self.path = path
 
-    def set_random_path(self):
-        self.path = sample(self.neighborhood.locations, settings.NUM_LOCATIONS)
-
     @cached_property
     def full_path(self):
         return [self.neighborhood.hq, *self.path, self.neighborhood.hq]
 
-    def calculate_distance(self):
+    @cached_property
+    def distance(self):
         if not self.path:
             raise Exception('Trainer path is not set.')
         
@@ -126,7 +119,7 @@ class Trainer:
             distance *= 100
             distance += 10000
 
-        self.distance = distance
+        return distance
 
     @cached_property
     def fitness(self):
@@ -135,6 +128,9 @@ class Trainer:
     @cached_property
     def printable_path(self):
         return [location.name for location in self.full_path]
+
+    def set_random_path(self):
+        self.path = sample(self.neighborhood.locations, settings.NUM_LOCATIONS)
 
     def plot_path(self, axes):
         x = [location.x_coord for location in self.full_path]
