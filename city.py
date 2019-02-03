@@ -8,6 +8,9 @@ from settings import NUM_LOCATIONS, DOG_NAME_LIST
 
 
 class Location:
+    """
+    2-coordinate point in the map.
+    """
     def __init__(self, name, x, y):
         self.name = name
         self.x_coord = x
@@ -15,7 +18,10 @@ class Location:
 
 
 class Neighborhood:
-
+    """
+    Mainly a collection of Locations, although also contains some
+    util methods.
+    """
     def __init__(self, width=100, height=100, num_locations=NUM_LOCATIONS):
         self.width = width
         self.height = height
@@ -41,6 +47,21 @@ class Neighborhood:
         all_locations = list(self.locations)
         all_locations.append(self.hq)
         return all_locations
+
+    def distance_between(self, location_a, location_b):
+        """
+        Remember the Pythagorean theorem? Exactly.
+        Caches the value since this will be called many times.
+        """
+        cache_name = location_a.name+location_b.name
+        if cache_name in self.cached_distances:
+            return self.cached_distances[cache_name]
+        
+        x_a, y_a = location_a.x_coord, location_a.y_coord
+        x_b, y_b = location_b.x_coord, location_b.y_coord
+        
+        self.cached_distances[cache_name] = sqrt((x_a-x_b)**2 + (y_a-y_b)**2)
+        return self.cached_distances[cache_name]
 
     def plot_map(self, axes):
         axes.scatter(
@@ -80,17 +101,6 @@ class Neighborhood:
         plot.xticks([0, 25, 50, 75, 100])
         plot.ylim = 0, 100
         plot.yticks([0, 25, 50, 75, 100])
-
-    def distance_between(self, location_a, location_b):
-        cache_name = location_a.name+location_b.name
-        if cache_name in self.cached_distances:
-            return self.cached_distances[cache_name]
-        
-        x_a, y_a = location_a.x_coord, location_a.y_coord
-        x_b, y_b = location_b.x_coord, location_b.y_coord
-        
-        self.cached_distances[cache_name] = sqrt((x_a-x_b)**2 + (y_a-y_b)**2)
-        return self.cached_distances[cache_name]
 
 
 if __name__ == "__main__":

@@ -163,7 +163,7 @@ if __name__ == '__main__':
         except AttributeError:
             pass
         base_axes.plot()
-    # sim.run_simulation()
+    sim.run_simulation()
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sim.run_simulation)
         anim = animation.FuncAnimation(fig, animate, interval=1000)
