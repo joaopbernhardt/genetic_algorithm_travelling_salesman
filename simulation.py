@@ -8,6 +8,7 @@ import settings
 from trainer import Trainer, Generation
 from city import Neighborhood
 
+
 class Simulation:
     def __init__(self, neighborhood, initial_generation):
         self.generation = initial_generation
@@ -24,21 +25,14 @@ class Simulation:
             this_best_trainer = self.generation.get_best_trainer()
             this_best_distance = this_best_trainer.distance
             
-            if not self.best_distances or this_best_distance < self.best_distance:
+            if generation_number == 1 or this_best_distance < self.best_distance:
                 self.best_distance = this_best_distance
                 self.best_trainer = this_best_trainer
             
             self.best_distances.append(this_best_distance)
 
-            if generation_number == settings.NUM_GENERATIONS:
-                print(f'\n\n--- END OF SIMULATION ---')
-                print(f"Best trainer's distance: {'{0:.2f}m'.format(self.best_distance)}")
-                print(f"Best trainer's path: {self.best_trainer.printable_path}")
-            elif generation_number%(settings.NUM_GENERATIONS/100) == 0:
-                print(f'\nGeneration number {generation_number}')
-                print(f'Best across generations: {"{0:.2f}m".format(self.best_distance)}')
-                print(f'Best of generation {generation_number}: {"{0:.2f}m".format(this_best_distance)}')
-                print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_trainers]}')
+            self.print_stats(generation_number, this_best_distance)
+
             # if self.has_converged():
                 # break
 
@@ -130,6 +124,17 @@ class Simulation:
         elif r <= settings.CHANCE_RANDOM_SWAP_MUTATION:
             swap_allels(randint(0, len(chromosome)-1), randint(0, len(chromosome)-1))
 
+    def print_stats(self, generation_number, this_best_distance):
+        if generation_number == settings.NUM_GENERATIONS:
+            print(f'\n\n--- END OF SIMULATION ---')
+            print(f"Best trainer's distance: {'{0:.2f}m'.format(self.best_distance)}")
+            print(f"Best trainer's path: {self.best_trainer.printable_path}")
+        elif generation_number%(settings.NUM_GENERATIONS/100) == 0:
+            print(f'\nGeneration number {generation_number}')
+            print(f'Best across generations: {"{0:.2f}m".format(self.best_distance)}')
+            print(f'Best of generation {generation_number}: {"{0:.2f}m".format(this_best_distance)}')
+            print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_trainers]}')
+
 
 if __name__ == '__main__':
     neighborhood = Neighborhood()
@@ -159,15 +164,10 @@ if __name__ == '__main__':
             pass
         base_axes.plot()
     # sim.run_simulation()
-    start = time.time()
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sim.run_simulation)
         anim = animation.FuncAnimation(fig, animate, interval=1000)
         pyplot.show()
-    end = time.time()
-    
-    print("Elapsed time: ", end-start)
-    print("Best path: ", [l.name for l in sim.best_trainer.path])
 
     neighborhood.configure_plot(pyplot)
     sim.best_trainer.plot_path(base_axes)
