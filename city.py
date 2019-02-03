@@ -34,8 +34,14 @@ class Neighborhood:
 
         randomized_names = sample(DOG_NAME_LIST, num_locations)
 
+        def uncentered_random_coord():
+            coord = 0
+            while not coord and not 40 < coord < 60:
+                coord = randint(0, width)
+            return coord
+
         self.locations = [
-            Location(name, randint(0, width), randint(0, height))
+            Location(name, uncentered_random_coord(), uncentered_random_coord())
             for name in randomized_names
         ]
         self.hq = Location('Oowlish HQ', self.width/2, self.height/2)
@@ -55,21 +61,21 @@ class Neighborhood:
         for index, location in enumerate(self.locations_with_hq):
             if 'oowlish' in location.name.lower():
                 axes.annotate(location.name, (location.x_coord+1, location.y_coord+1))
-                axes.scatter(location.x_coord, location.y_coord, s=100)
+                axes.scatter(location.x_coord, location.y_coord, s=150)
                 return
 
             axes.annotate(location.name, (location.x_coord+1, location.y_coord+1))
 
-    def plot_possibilities(self):
+    def plot_possibilities(self, axes):
         possible_pairs = combinations(self.locations_with_hq, 2)
         for location_a, location_b in possible_pairs:
-            pyplot.plot(
+            axes.plot(
                 [location_a.x_coord, location_b.x_coord],
                 [location_a.y_coord, location_b.y_coord],
                 '--'
             )
 
-    def plot_distances(self):
+    def plot_distances(self, axes):
         possible_pairs = combinations(self.locations_with_hq, 2)
 
         def middle_point(location_a, location_b):
@@ -77,7 +83,7 @@ class Neighborhood:
         
         for location_a, location_b in possible_pairs:
             distance = int(self.distance_between(location_a, location_b))
-            pyplot.annotate(distance, middle_point(location_a, location_b))
+            axes.annotate(distance, middle_point(location_a, location_b))
 
     def configure_plot(self, plot):
         plot.xlim = 0, 100
@@ -94,9 +100,13 @@ class Neighborhood:
 
 
 if __name__ == "__main__":
+    fig = pyplot.figure()
+    axes = fig.add_subplot(111)
+
     neighborhood = Neighborhood()
-    neighborhood.plot_map()
-    neighborhood.plot_possibilities()
-    neighborhood.plot_distances()
-    neighborhood.configure_plot()
+    neighborhood.plot_map(axes)
+    neighborhood.plot_possibilities(axes)
     pyplot.show()
+    # neighborhood.plot_distances(axes)
+    # neighborhood.configure_plot(pyplot)
+    # pyplot.show()

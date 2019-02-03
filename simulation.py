@@ -1,4 +1,4 @@
-from time import time
+import time
 from concurrent.futures import ThreadPoolExecutor
 from random import randint, random, shuffle
 
@@ -132,7 +132,15 @@ if __name__ == '__main__':
 
     fig = pyplot.figure()
     base_axes = fig.add_subplot(111)
+    neighborhood.configure_plot(pyplot)
+
     neighborhood.plot_map(base_axes)
+    pyplot.show(block=False)
+    input("Showing base map. Press [enter] to proceed.")
+
+    neighborhood.plot_possibilities(base_axes)
+    pyplot.show(block=False)
+    input("Showing map possibilities. Press [enter] to proceed.")
 
     generation = Generation(neighborhood=neighborhood)
     generation.setup_random_generation(settings.POPULATION_AMOUNT)
@@ -147,12 +155,12 @@ if __name__ == '__main__':
             pass
         base_axes.plot()
     # sim.run_simulation()
-    start = time()
+    start = time.time()
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sim.run_simulation)
         anim = animation.FuncAnimation(fig, animate, interval=1000)
         pyplot.show()
-    end = time()
+    end = time.time()
     
     print("Elapsed time: ", end-start)
     print("Best path: ", [l.name for l in sim.best_trainer.path])
