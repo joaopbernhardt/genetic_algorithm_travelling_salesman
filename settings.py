@@ -1,12 +1,19 @@
 NUM_LOCATIONS = 30
 NUM_GENERATIONS = 35000
 POPULATION_AMOUNT = 50
-ELITE_AMOUNT = 3
+
+ELITE_AMOUNT = 3  # amount of individuals carried over to next generation
 SELECTION_METHOD = "Roulette-Wheel"  # Roulette-Wheel or Linear Rank (TODO)
+
+# Chances of mutations are mutually exclusive,
+# also they run from lowest to highest probability,
+# meaning if i.e. a 0.05 chance mutation happens,
+# then a 0.10 chance mutation won't happen in that same case.
 CHANCE_SHUFFLE_MUTATION = 0.05
 CHANCE_SEQUENTIAL_SWAP_MUTATION = 0.15
 CHANCE_RANDOM_SWAP_MUTATION = 0.25
 
+# These are actually male dog names... but that doesn't matter.
 LOCATION_NAME_LIST = [
     "Ace",
     "Apollo",
