@@ -1,6 +1,7 @@
-from math import sqrt
+from math import sqrt, factorial
 from random import randint, sample
 from itertools import combinations, chain
+from decimal import Decimal
 
 from matplotlib import pyplot
 
@@ -48,6 +49,16 @@ class Neighborhood:
         all_locations.append(self.hq)
         return all_locations
 
+    @property
+    def num_possible_solutions(self):
+        """
+        Search space is the amount of permutations of locations,
+        that is, it's factorial.
+        Having specific points on the edges do not affect this,
+        i.e. beginning and ending are pre-set.
+        """
+        return factorial(len(self.locations))
+
     def distance_between(self, location_a, location_b):
         """
         Remember the Pythagorean theorem? Exactly.
@@ -86,6 +97,8 @@ class Neighborhood:
                 '--'
             )
 
+    # def plot_title(self, plot):
+
     def plot_distances(self, axes):
         possible_pairs = combinations(self.locations_with_hq, 2)
 
@@ -97,6 +110,10 @@ class Neighborhood:
             axes.annotate(distance, middle_point(location_a, location_b))
 
     def configure_plot(self, plot):
+        def format_e(n):
+            return '{:.2e}'.format(n)
+        
+        plot.title(f'{NUM_LOCATIONS} locations, {format_e(self.num_possible_solutions)} possibilities.')
         plot.xlim = 0, 100
         plot.xticks([0, 25, 50, 75, 100])
         plot.ylim = 0, 100
