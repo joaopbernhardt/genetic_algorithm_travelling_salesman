@@ -101,11 +101,13 @@ class World:
             distance = int(self.distance_between(location_a, location_b))
             axes.annotate(distance, middle_point(location_a, location_b))
 
-    def configure_plot(self, plot):
+    def configure_plot(self, plot, gen=None):
         def format_e(n):
             return '{:.2e}'.format(n)
-        
-        plot.title(f'{NUM_LOCATIONS} locations, {format_e(self.num_possible_solutions)} possibilities.')
+        title = f'{NUM_LOCATIONS} locations, {format_e(self.num_possible_solutions)} possibilities.'
+        if gen:
+            title += f" Generation {gen}"
+        plot.title(title)
         plot.xlim = 0, 100
         plot.xticks([0, 25, 50, 75, 100])
         plot.ylim = 0, 100

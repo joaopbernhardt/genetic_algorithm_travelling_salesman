@@ -6,7 +6,7 @@ from matplotlib import pyplot, animation
 
 import settings
 from individual import Individual, Generation
-from city import World
+from world import World
 
 
 class Simulation:
@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
     def animate(i):
         base_axes.clear()
-        world.configure_plot(pyplot)
+        world.configure_plot(pyplot, gen=len(sim.best_distances)-1)
         world.plot_map(base_axes)
         try:
             sim.best_individual.plot_path(base_axes)
@@ -207,11 +207,15 @@ if __name__ == '__main__':
     
     # sim.run_simulation()
     
+    # Writer = animation.writers['ffmpeg']
+    # writer = Writer(fps=4, metadata=dict(artist='João Paulo Bernhardt'), bitrate=1800)
+    
     # Spawns a new thread for executing the simulation,
     # enabling the program to dynamically plot the best individual.
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sim.run_simulation)
-        anim = animation.FuncAnimation(fig, animate, interval=500)
+        anim = animation.FuncAnimation(fig, animate, interval=250)
+        # anim.save(f'tsp_{settings.NUM_LOCATIONS}_locations.mp4', writer=writer)
         pyplot.show()
 
     world.configure_plot(pyplot)
