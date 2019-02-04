@@ -5,8 +5,8 @@ from random import randint, random, shuffle
 from matplotlib import pyplot, animation
 
 import settings
-from trainer import Trainer, Generation
-from city import Neighborhood
+from individual import Individual, Generation
+from city import World
 
 
 class Simulation:
@@ -15,9 +15,9 @@ class Simulation:
     contains the loop which creates and evaluates generations,
     performs the crossovers, mutations.
     """
-    def __init__(self, neighborhood, initial_generation):
+    def __init__(self, world, initial_generation):
         self.generation = initial_generation
-        self.neighborhood = neighborhood
+        self.world = world
 
         self.best_distances = []  # Best results for each generation
 
@@ -26,16 +26,16 @@ class Simulation:
 
         for generation_number in range(1, settings.NUM_GENERATIONS+1):
             # Creates a new generation based on the previous one
-            self.generation = Generation(self.neighborhood, self.get_new_trainers(self.generation))
+            self.generation = Generation(self.world, self.get_new_individuals(self.generation))
 
             # This generation's results
-            this_best_trainer = self.generation.get_best_trainer()
-            this_best_distance = this_best_trainer.distance
+            this_best_individual = self.generation.get_best_individual()
+            this_best_distance = this_best_individual.distance
             
             # Saves the result if it's the best one so far, across generations
             if generation_number == 1 or this_best_distance < self.best_distance:
                 self.best_distance = this_best_distance
-                self.best_trainer = this_best_trainer
+                self.best_individual = this_best_individual
             
             self.best_distances.append(this_best_distance)
 
@@ -59,18 +59,18 @@ class Simulation:
             if distance != last_result:
                 return False
 
-    def get_new_trainers(self, generation):
+    def get_new_individuals(self, generation):
         """
-        Provides a new list of trainers, based on the given generation.
+        Provides a new list of individuals, based on the given generation.
         Performs crossover and mutations on the childs.
         Can also just copy some individuals (elite) into the next generation.
         """
-        new_trainers = []
+        new_individuals = []
 
         if settings.ELITE_AMOUNT:
-            new_trainers.extend(generation.get_elite(settings.ELITE_AMOUNT))
+            new_individuals.extend(generation.get_elite(settings.ELITE_AMOUNT))
 
-        if len(set([str(t.printable_path) for t in generation.trainers])) == 1:
+        if len(set([str(t.printable_path) for t in generation.individuals])) == 1:
             # This weird 'if' above will be True in case all the individuals are equal
             print('Population has converged. Finishing simulation.')
             exit()
@@ -86,35 +86,35 @@ class Simulation:
         
         # Runs until we have the correct amount of individuals for this generation
         while True:
-            parent_1 = generation.ranked_trainers[get_parent_index()]
-            parent_2 = generation.ranked_trainers[get_parent_index()]
+            parent_1 = generation.ranked_individuals[get_parent_index()]
+            parent_2 = generation.ranked_individuals[get_parent_index()]
 
             while parent_1.path == parent_2.path:
                 # Parents are the same -- retry second parent
-                parent_2 = generation.ranked_trainers[get_parent_index()]
+                parent_2 = generation.ranked_individuals[get_parent_index()]
 
-            child_a, child_b = Trainer(self.neighborhood), Trainer(self.neighborhood)
+            child_a, child_b = Individual(self.world), Individual(self.world)
             
             child_a_path, child_b_path = self.crossover(parent_1, parent_2)
             self.mutate(child_a_path)
             self.mutate(child_b_path)
             child_a.path, child_b.path = child_a_path, child_b_path
             
-            new_trainers.extend([child_a, child_b])
-            if len(new_trainers) >= settings.POPULATION_AMOUNT:
-                new_trainers = new_trainers[0:settings.POPULATION_AMOUNT+1]
+            new_individuals.extend([child_a, child_b])
+            if len(new_individuals) >= settings.POPULATION_AMOUNT:
+                new_individuals = new_individuals[0:settings.POPULATION_AMOUNT+1]
                 break
 
-        return new_trainers
+        return new_individuals
 
-    def crossover(self, trainer_a, trainer_b):
+    def crossover(self, individual_a, individual_b):
         """
         Order-1 type crossover operation.
         """
-        length = len(trainer_a.path)
+        length = len(individual_a.path)
         
-        chromosome_a = trainer_a.path
-        chromosome_b = trainer_b.path
+        chromosome_a = individual_a.path
+        chromosome_b = individual_b.path
 
         random_slice = [randint(0, length), randint(0, length)]
         random_slice.sort()
@@ -160,47 +160,47 @@ class Simulation:
     def print_stats(self, generation_number, this_best_distance):
         if generation_number == settings.NUM_GENERATIONS:
             print(f'\n\n--- END OF SIMULATION ---')
-            print(f"Best trainer's distance: {'{0:.2f}m'.format(self.best_distance)}")
-            print(f"Best trainer's path: {self.best_trainer.printable_path}")
+            print(f"Best individual's distance: {'{0:.2f}m'.format(self.best_distance)}")
+            print(f"Best individual's path: {self.best_individual.printable_path}")
         elif generation_number%(settings.NUM_GENERATIONS/100) == 0:
             print(f'\nGeneration number {generation_number}')
             print(f'Best across generations: {"{0:.2f}m".format(self.best_distance)}')
             print(f'Best of generation {generation_number}: {"{0:.2f}m".format(this_best_distance)}')
-            print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_trainers]}')
+            print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_individuals]}')
 
 
 if __name__ == '__main__':
-    # Initializes a new neighborhood
-    neighborhood = Neighborhood()
+    # Initializes a new world
+    world = World()
 
     # Prepares matplotlibs stuff
     fig = pyplot.figure()
     base_axes = fig.add_subplot(111)
-    neighborhood.configure_plot(pyplot)
+    world.configure_plot(pyplot)
 
     # Displays the base map
-    neighborhood.plot_map(base_axes)
+    world.plot_map(base_axes)
     pyplot.show(block=False)
     input("Showing base map. Press [enter] to proceed.")
 
     # Adds all possible paths into the map
-    neighborhood.plot_possibilities(base_axes)
+    world.plot_possibilities(base_axes)
     pyplot.show(block=False)
     input("Showing map possibilities. Press [enter] to proceed.")
 
     # Initializes a random generation
-    generation = Generation(neighborhood=neighborhood)
+    generation = Generation(world=world)
     generation.setup_random_generation(settings.POPULATION_AMOUNT)
     
     # Prepares the simulation to be started
-    sim = Simulation(neighborhood, generation)
+    sim = Simulation(world, generation)
 
     def animate(i):
         base_axes.clear()
-        neighborhood.configure_plot(pyplot)
-        neighborhood.plot_map(base_axes)
+        world.configure_plot(pyplot)
+        world.plot_map(base_axes)
         try:
-            sim.best_trainer.plot_path(base_axes)
+            sim.best_individual.plot_path(base_axes)
         except AttributeError:
             pass
         base_axes.plot()
@@ -214,5 +214,5 @@ if __name__ == '__main__':
         anim = animation.FuncAnimation(fig, animate, interval=500)
         pyplot.show()
 
-    neighborhood.configure_plot(pyplot)
-    sim.best_trainer.plot_path(base_axes)
+    world.configure_plot(pyplot)
+    sim.best_individual.plot_path(base_axes)

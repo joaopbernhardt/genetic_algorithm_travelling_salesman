@@ -29,27 +29,27 @@ def pairwise(iterable):
     return zip(a, b)
 
 
-class Trainer:
+class Individual:
     """
     This class is the "Individual" in Genetic Algorithm's terms.
     The "path" attribute is the chromosome, while the locations are the genes.
     """
-    def __init__(self, neighborhood, path=[]):
-        self.neighborhood = neighborhood
+    def __init__(self, world, path=[]):
+        self.world = world
         self.path = path
 
     @cached_property
     def full_path(self):
-        return [self.neighborhood.hq, *self.path, self.neighborhood.hq]
+        return [self.world.hq, *self.path, self.world.hq]
 
     @cached_property
     def distance(self):
         if not self.path:
-            raise Exception('Trainer path is not set.')
+            raise Exception('Individual path is not set.')
         
         distance = 0
         for location_a, location_b in pairwise(self.full_path):
-            distance += self.neighborhood.distance_between(location_a, location_b)
+            distance += self.world.distance_between(location_a, location_b)
 
         def should_penalize():
             if not len(set(self.path)) == settings.NUM_LOCATIONS:
@@ -79,7 +79,7 @@ class Trainer:
         return [location.name for location in self.full_path]
 
     def set_random_path(self):
-        self.path = sample(self.neighborhood.locations, settings.NUM_LOCATIONS)
+        self.path = sample(self.world.locations, settings.NUM_LOCATIONS)
 
     def plot_path(self, axes):
         x = [location.x_coord for location in self.full_path]
@@ -94,39 +94,39 @@ class Generation:
     such as the probabilities of selection of an individual for being
     a parent.
     """
-    def __init__(self, neighborhood=None, trainers=[]):
-        self.trainers = trainers
-        self.neighborhood = neighborhood
+    def __init__(self, world=None, individual=[]):
+        self.individuals = individual
+        self.world = world
 
     @cached_property
     def total_distance(self):
-        return sum([trainer.distance for trainer in self.trainers])
+        return sum([individual.distance for individual in self.individuals])
 
     @cached_property
     def total_fitness(self):
-        return sum([trainer.fitness for trainer in self.trainers])
+        return sum([individual.fitness for individual in self.individuals])
 
     @cached_property
-    def ranked_trainers(self):
+    def ranked_individuals(self):
         """
         Returns a sorted iterable beginning with the best individual.
         """
-        ranked_trainers = list(self.trainers)
-        ranked_trainers.sort(key=lambda trainer: trainer.fitness, reverse=True)
-        return ranked_trainers
+        ranked_individuals = list(self.individuals)
+        ranked_individuals.sort(key=lambda individual: individual.fitness, reverse=True)
+        return ranked_individuals
 
     @cached_property
     def individual_probabilities(self):
         probability_dist = []
         if "roulette" in settings.SELECTION_METHOD.lower():
-            for trainer in self.ranked_trainers:
-                probability_dist.append(trainer.fitness/self.total_fitness)
+            for individual in self.ranked_individuals:
+                probability_dist.append(individual.fitness/self.total_fitness)
         else:
             raise Exception('Invalid selection method.')
         # TODO: fix linear rank probabilities below
         # elif "rank" in settings.SELECTION_METHOD.lower():
-        #     total = sum([i for i in range(1, len(self.trainers)+1)])
-        #     for index, trainer in enumerate(self.ranked_trainers):
+        #     total = sum([i for i in range(1, len(self.individuals)+1)])
+        #     for index, individual in enumerate(self.ranked_individuals):
         #         probability_dist.append((index+1)/total)
         
         return probability_dist
@@ -150,28 +150,28 @@ class Generation:
         
         return probs
 
-    def setup_random_generation(self, num_trainers):
-        for _ in range(num_trainers):
-            trainer = Trainer(self.neighborhood)
-            trainer.set_random_path()
-            self.trainers.append(trainer)
+    def setup_random_generation(self, num_individuals):
+        for _ in range(num_individuals):
+            individual = Individual(self.world)
+            individual.set_random_path()
+            self.individuals.append(individual)
 
-    def get_best_trainer(self):
-        min_distance = min([trainer.distance for trainer in self.trainers])
-        return next(trainer for trainer in self.trainers if trainer.distance == min_distance)
+    def get_best_individual(self):
+        min_distance = min([individual.distance for individual in self.individuals])
+        return next(individual for individual in self.individuals if individual.distance == min_distance)
 
-    def get_worst_trainer(self):
-        max_distance = max([trainer.distance for trainer in self.trainers])
-        return next(trainer for trainer in self.trainers if trainer.distance == max_distance)
+    def get_worst_individual(self):
+        max_distance = max([individual.distance for individual in self.individuals])
+        return next(individual for individual in self.individuals if individual.distance == max_distance)
 
     def get_elite(self, amount):
         """
         Chooses the best `amount` unique individuals that have different paths.
         """
         elite = []
-        for trainer in self.ranked_trainers:
+        for individual in self.ranked_individuals:
             if len(elite) == amount:
                 break
-            if not trainer.path in [t.path for t in elite]:
-                elite.append(trainer)
+            if not individual.path in [t.path for t in elite]:
+                elite.append(individual)
         return elite
