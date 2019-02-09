@@ -109,7 +109,8 @@ class Simulation:
 
         return new_individuals
 
-    def crossover(self, individual_a, individual_b):
+    @staticmethod
+    def crossover(individual_a, individual_b):
         """
         Order-1 type crossover operation.
         """
@@ -143,7 +144,8 @@ class Simulation:
         # TODO: re-initialize random_slice?
         return get_child_chromosome(chromosome_a, chromosome_b), get_child_chromosome(chromosome_b, chromosome_a)
 
-    def mutate(self, chromosome):
+    @staticmethod
+    def mutate(chromosome):
         """
         Performs mutations on the chromosome based on the settings' probabilities.
         """
