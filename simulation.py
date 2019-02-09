@@ -68,7 +68,9 @@ class Simulation:
         new_individuals = []
 
         if settings.ELITE_AMOUNT:
-            new_individuals.extend(generation.get_elite(settings.ELITE_AMOUNT))
+            new_individuals.extend(
+                generation.get_elite(settings.ELITE_AMOUNT)
+            )
 
         if len(set([str(t.printable_path) for t in generation.individuals])) == 1:
             # This weird 'if' above will be True in case all the individuals are equal
@@ -89,7 +91,7 @@ class Simulation:
             parent_1 = generation.ranked_individuals[get_parent_index()]
             parent_2 = generation.ranked_individuals[get_parent_index()]
 
-            while parent_1.path == parent_2.path:
+            while Individual.have_the_same_path(parent_1, parent_2):
                 # Parents are the same -- retry second parent
                 parent_2 = generation.ranked_individuals[get_parent_index()]
 
@@ -118,21 +120,27 @@ class Simulation:
 
         random_slice = [randint(0, length), randint(0, length)]
         random_slice.sort()
+
+        slice_negative = [
+            index for index in range(settings.NUM_LOCATIONS)
+            if index not in range(*random_slice)
+        ]
         
         def get_child_chromosome(base_parent, secondary_parent):
+            # TODO: this method is responsible for >50% of execution time
+            # in a simulation. Find a way to improve performance.
+            secondary_parent = tuple(secondary_parent)
             child_chromosome = [None] * settings.NUM_LOCATIONS
             child_chromosome[random_slice[0]:random_slice[1]] = base_parent[random_slice[0]:random_slice[1]]
-
-            for index, allel in enumerate(child_chromosome):
-                if allel:
-                    # This allel is already non-empty
-                    continue
+            
+            for index in slice_negative:
                 child_chromosome[index] = next(
                     allel_b for allel_b in secondary_parent
                     if not allel_b in child_chromosome  # non-duplicates only
                 )
             return child_chromosome
 
+        # TODO: re-initialize random_slice?
         return get_child_chromosome(chromosome_a, chromosome_b), get_child_chromosome(chromosome_b, chromosome_a)
 
     def mutate(self, chromosome):
@@ -169,7 +177,21 @@ class Simulation:
             print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_individuals]}')
 
 
-if __name__ == '__main__':
+def run_basic_simulation():
+    # Initializes a new world
+    world = World()
+
+    # Initializes a random generation
+    generation = Generation(world=world)
+    generation.setup_random_generation(settings.POPULATION_AMOUNT)
+    
+    # Prepares the simulation to be started
+    sim = Simulation(world, generation)
+
+    sim.run_simulation()
+
+
+def run_plotted_simulation():
     # Initializes a new world
     world = World()
 
@@ -205,18 +227,22 @@ if __name__ == '__main__':
             pass
         base_axes.plot()
     
-    # sim.run_simulation()
-    
-    # Writer = animation.writers['ffmpeg']
-    # writer = Writer(fps=4, metadata=dict(artist='João Paulo Bernhardt'), bitrate=1800)
+    Writer = animation.writers['ffmpeg']
+    writer = Writer(fps=4, metadata=dict(artist='João Paulo Bernhardt'), bitrate=1800)
     
     # Spawns a new thread for executing the simulation,
     # enabling the program to dynamically plot the best individual.
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(sim.run_simulation)
         anim = animation.FuncAnimation(fig, animate, interval=250)
+
+        # Uncomment this to save the animation
         # anim.save(f'tsp_{settings.NUM_LOCATIONS}_locations.mp4', writer=writer)
         pyplot.show()
 
     world.configure_plot(pyplot)
     sim.best_individual.plot_path(base_axes)
+
+
+if __name__ == '__main__':
+    run_plotted_simulation()

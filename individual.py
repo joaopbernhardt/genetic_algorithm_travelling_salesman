@@ -34,7 +34,7 @@ class Individual:
     This class is the "Individual" in Genetic Algorithm's terms.
     The "path" attribute is the chromosome, while the locations are the genes.
     """
-    def __init__(self, world, path=[]):
+    def __init__(self, world, path=set()):
         self.world = world
         self.path = path
 
@@ -77,6 +77,15 @@ class Individual:
     @cached_property
     def printable_path(self):
         return [location.name for location in self.full_path]
+
+    @staticmethod
+    def have_the_same_path(individual_1, individual_2):
+        """
+        Checks if paths are either equal or symmetric
+        """
+        reversed_2 = list(individual_2.path)
+        reversed_2.reverse()
+        return individual_1.path == individual_2.path or individual_1 == reversed_2
 
     def set_random_path(self):
         self.path = sample(self.world.locations, settings.NUM_LOCATIONS)
@@ -172,6 +181,11 @@ class Generation:
         for individual in self.ranked_individuals:
             if len(elite) == amount:
                 break
-            if not individual.path in [t.path for t in elite]:
-                elite.append(individual)
+
+            # Checks if this individual is already in elite
+            for this_elite in elite:
+                if Individual.have_the_same_path(individual, this_elite):
+                    continue
+
+            elite.append(individual)
         return elite
