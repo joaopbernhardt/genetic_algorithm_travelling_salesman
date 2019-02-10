@@ -15,39 +15,109 @@ class Simulation:
     contains the loop which creates and evaluates generations,
     performs the crossovers, mutations.
     """
-    def __init__(self, world, initial_generation):
-        self.generation = initial_generation
+    def __init__(self, world):
         self.world = world
+        self.generation = Generation(world, random=True)
 
         self.best_distances = []  # Best results for each generation
 
-    def run_simulation(self):
+    def run_simulation(self, pipe_conn=None):
         print('--- STARTING SIMULATION --- ')
 
-        for generation_number in range(1, settings.NUM_GENERATIONS+1):
-            # Creates a new generation based on the previous one
-            self.generation = Generation(self.world, self.get_new_individuals(self.generation))
+        try:
+            for generation_number in range(1, settings.NUM_GENERATIONS+1):
+                # Creates a new generation based on the previous one
+                self.generation = Generation(self.world, self.get_new_individuals(self.generation))
 
-            # This generation's results
-            this_best_individual = self.generation.get_best_individual()
-            this_best_distance = this_best_individual.distance
-            
-            # Saves the result if it's the best one so far, across generations
-            if generation_number == 1 or this_best_distance < self.best_distance:
-                self.best_distance = this_best_distance
-                self.best_individual = this_best_individual
-            
-            self.best_distances.append(this_best_distance)
+                # This generation's results
+                this_best_individual = self.generation.get_best_individual()
+                this_best_distance = this_best_individual.distance
 
-            self.print_stats(generation_number, this_best_distance)
+                # Saves the result if it's the best one so far, across generations
+                if generation_number == 1 or this_best_distance < self.best_distance:
+                    self.best_distance = this_best_distance
+                    self.best_individual = this_best_individual
 
-            # if self.has_converged():
-                # break
+                self.best_distances.append(this_best_distance)
+
+                self.print_stats(generation_number, this_best_distance)
+
+                if pipe_conn:
+                    if generation_number%(settings.NUM_GENERATIONS/200) == 0:
+                        pipe_conn.send({
+                            'best_distance': self.best_distance,
+                            'best_individual_path': self.best_individual.path
+                        })
+
+                    if generation_number == settings.NUM_GENERATIONS:
+                        pipe_conn.close()
+
+                # if self.has_converged():
+                    # break
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            if pipe_conn:
+                pipe_conn.send(tb)
+            raise e
+
+    def run_multiprocess_simulation(self, num_processes):
+        world = getattr(self, 'world', World())
+        pipe_conns = []
+        from multiprocessing import Process, Pipe
+
+        for _ in range(num_processes):
+            # Prepares the simulation to be started
+            sim = Simulation(world)
+
+            parent_conn, child_conn = Pipe()
+            pipe_conns.append(parent_conn)
+
+            p = Process(target=sim.run_simulation, args=(child_conn,))
+            p.start()
+
+        import time
+        all_results = []
+        while True:
+            time.sleep(1)
+            current_results = []
+            for conn in pipe_conns:
+                try:
+                    while conn.poll():
+                        this_result = conn.recv()
+                        if not isinstance(this_result, dict):
+                            print(this_result)
+                        current_results.append(this_result)
+                except EOFError:
+                    continue
+
+            if not current_results:
+                continue
+
+            this_best_distance = min([res['best_distance'] for res in current_results])
+            this_best_individual_path = next(
+                res['best_individual_path'] for res in current_results
+                if res['best_distance'] == this_best_distance)
+
+            all_results.append({
+                'best_individual_path': this_best_individual_path,
+                'best_distance': this_best_distance,
+            })
+
+            best_overall_distance = min([r['best_distance'] for r in all_results])
+            best_overall_path = next(
+                res['best_individual_path'] for res in all_results
+                if res['best_distance'] == best_overall_distance)
+
+            best_individual = Individual(self.world, path=best_overall_path)
+            self.best_individual = best_individual
+
+
 
     def has_converged(self):
         if not self.best_distances:
             return False
-        
+
         distances = list(self.best_distances)
         distances.reverse()
 
@@ -85,7 +155,7 @@ class Simulation:
             for i in range(len(probs)):
                 if probs[i] < r <= probs[i+1]:
                     return i
-        
+
         # Runs until we have the correct amount of individuals for this generation
         while True:
             parent_1 = generation.ranked_individuals[get_parent_index()]
@@ -96,12 +166,12 @@ class Simulation:
                 parent_2 = generation.ranked_individuals[get_parent_index()]
 
             child_a, child_b = Individual(self.world), Individual(self.world)
-            
+
             child_a_path, child_b_path = self.crossover(parent_1, parent_2)
             self.mutate(child_a_path)
             self.mutate(child_b_path)
             child_a.path, child_b.path = child_a_path, child_b_path
-            
+
             new_individuals.extend([child_a, child_b])
             if len(new_individuals) >= settings.POPULATION_AMOUNT:
                 new_individuals = new_individuals[0:settings.POPULATION_AMOUNT+1]
@@ -115,7 +185,7 @@ class Simulation:
         Order-1 type crossover operation.
         """
         length = len(individual_a.path)
-        
+
         chromosome_a = individual_a.path
         chromosome_b = individual_b.path
 
@@ -126,14 +196,14 @@ class Simulation:
             index for index in range(settings.NUM_LOCATIONS)
             if index not in range(*random_slice)
         ]
-        
+
         def get_child_chromosome(base_parent, secondary_parent):
             # TODO: this method is responsible for >50% of execution time
             # in a simulation. Find a way to improve performance.
             secondary_parent = tuple(secondary_parent)
             child_chromosome = [None] * settings.NUM_LOCATIONS
             child_chromosome[random_slice[0]:random_slice[1]] = base_parent[random_slice[0]:random_slice[1]]
-            
+
             for index in slice_negative:
                 child_chromosome[index] = next(
                     allel_b for allel_b in secondary_parent
@@ -151,17 +221,17 @@ class Simulation:
         """
         def swap_allels(position1, position2):
             chromosome[position1], chromosome[position2] = chromosome[position2], chromosome[position1]
-        
+
         r = random()
         if r <= settings.CHANCE_SHUFFLE_MUTATION:
             # Completely shuffles the chromosome
             shuffle(chromosome)
-        
+
         elif r <= settings.CHANCE_SEQUENTIAL_SWAP_MUTATION:
             # Swaps a pair of subsequent allels
             base_index = randint(1, len(chromosome)-1)
             swap_allels(base_index-1, base_index)
-        
+
         elif r <= settings.CHANCE_RANDOM_SWAP_MUTATION:
             # Swaps any pair of allels, not necessarily subsequent.
             # Can also sometimes just swap an allel for itself (i.e. do nothing)
@@ -176,24 +246,18 @@ class Simulation:
             print(f'\nGeneration number {generation_number}')
             print(f'Best across generations: {"{0:.2f}m".format(self.best_distance)}')
             print(f'Best of generation {generation_number}: {"{0:.2f}m".format(this_best_distance)}')
-            print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_individuals]}')
+            # print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_individuals]}')
 
 
 def run_basic_simulation():
     # Initializes a new world
     world = World()
 
-    # Initializes a random generation
-    generation = Generation(world=world)
-    generation.setup_random_generation(settings.POPULATION_AMOUNT)
-    
-    # Prepares the simulation to be started
-    sim = Simulation(world, generation)
-
-    sim.run_simulation()
+    sim = Simulation(world)
+    sim.run_multiprocess_simulation(7)
 
 
-def run_plotted_simulation():
+def run_plotted_simulation(num_processes=None):
     # Initializes a new world
     world = World()
 
@@ -215,27 +279,30 @@ def run_plotted_simulation():
     # Initializes a random generation
     generation = Generation(world=world)
     generation.setup_random_generation(settings.POPULATION_AMOUNT)
-    
+
     # Prepares the simulation to be started
-    sim = Simulation(world, generation)
+    sim = Simulation(world)
 
     def animate(i):
         base_axes.clear()
-        world.configure_plot(pyplot, gen=len(sim.best_distances)-1)
+        world.configure_plot(pyplot, gen=len(sim.best_distances))
         world.plot_map(base_axes)
         try:
             sim.best_individual.plot_path(base_axes)
         except AttributeError:
             pass
         base_axes.plot()
-    
+
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=4, metadata=dict(artist='João Paulo Bernhardt'), bitrate=1800)
-    
+
     # Spawns a new thread for executing the simulation,
     # enabling the program to dynamically plot the best individual.
     with ThreadPoolExecutor(max_workers=1) as executor:
-        executor.submit(sim.run_simulation)
+        if num_processes:
+            executor.submit(sim.run_multiprocess_simulation, num_processes)
+        else:
+            executor.submit(sim.run_simulation)
         anim = animation.FuncAnimation(fig, animate, interval=250)
 
         # Uncomment this to save the animation

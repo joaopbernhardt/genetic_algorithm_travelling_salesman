@@ -103,9 +103,11 @@ class Generation:
     such as the probabilities of selection of an individual for being
     a parent.
     """
-    def __init__(self, world=None, individual=[]):
-        self.individuals = individual
+    def __init__(self, world=None, individuals=[], random=True):
+        self.individuals = individuals
         self.world = world
+        if random:
+            self.setup_random_generation(settings.POPULATION_AMOUNT)
 
     @cached_property
     def total_distance(self):
