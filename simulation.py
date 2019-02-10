@@ -7,6 +7,7 @@ from matplotlib import pyplot, animation
 import settings
 from individual import Individual, Generation
 from world import World
+from multiprocessing_utils import get_last_message, get_pipes_messages, any_process_alive
 
 
 class Simulation:
@@ -24,46 +25,39 @@ class Simulation:
     def run_simulation(self, pipe_conn=None):
         print('--- STARTING SIMULATION --- ')
 
-        try:
-            for generation_number in range(1, settings.NUM_GENERATIONS+1):
-                # Creates a new generation based on the previous one
-                self.generation = Generation(self.world, self.get_new_individuals(self.generation))
+        for generation_number in range(1, settings.NUM_GENERATIONS+1):
+            # Creates a new generation based on the previous one
+            self.generation = Generation(self.world, self.get_new_individuals(self.generation))
 
-                # This generation's results
-                this_best_individual = self.generation.get_best_individual()
-                this_best_distance = this_best_individual.distance
+            # This generation's results
+            this_best_individual = self.generation.get_best_individual()
+            this_best_distance = this_best_individual.distance
 
-                # Saves the result if it's the best one so far, across generations
-                if generation_number == 1 or this_best_distance < self.best_distance:
-                    self.best_distance = this_best_distance
-                    self.best_individual = this_best_individual
+            # Saves the result if it's the best one so far, across generations
+            if generation_number == 1 or this_best_distance < self.best_distance:
+                self.best_distance = this_best_distance
+                self.best_individual = this_best_individual
 
-                self.best_distances.append(this_best_distance)
+            self.best_distances.append(this_best_distance)
 
-                self.print_stats(generation_number, this_best_distance)
+            self.print_stats(generation_number, this_best_distance)
 
-                if pipe_conn:
-                    if generation_number%(settings.NUM_GENERATIONS/200) == 0:
-                        pipe_conn.send({
-                            'best_distance': self.best_distance,
-                            'best_individual_path': self.best_individual.path
-                        })
-
-                    if generation_number == settings.NUM_GENERATIONS:
-                        pipe_conn.close()
-
-                # if self.has_converged():
-                    # break
-        except Exception as e:
-            import traceback
-            tb = traceback.format_exc()
             if pipe_conn:
-                pipe_conn.send(tb)
-            raise e
+                if generation_number%(settings.NUM_GENERATIONS/200) == 0:
+                    pipe_conn.send({
+                        'best_distance': self.best_distance,
+                        'best_individual_path': self.best_individual.path
+                    })
+
+                if generation_number == settings.NUM_GENERATIONS:
+                    pipe_conn.close()
+
+            # if self.has_converged():
+                # break
 
     def run_multiprocess_simulation(self, num_processes):
         world = getattr(self, 'world', World())
-        pipe_conns = []
+        pipe_conns, processes = [], []
         from multiprocessing import Process, Pipe
 
         for _ in range(num_processes):
@@ -74,22 +68,14 @@ class Simulation:
             pipe_conns.append(parent_conn)
 
             p = Process(target=sim.run_simulation, args=(child_conn,))
+            processes.append(p)
             p.start()
 
         import time
         all_results = []
-        while True:
-            time.sleep(1)
-            current_results = []
-            for conn in pipe_conns:
-                try:
-                    while conn.poll():
-                        this_result = conn.recv()
-                        if not isinstance(this_result, dict):
-                            print(this_result)
-                        current_results.append(this_result)
-                except EOFError:
-                    continue
+        while any_process_alive(processes):
+            time.sleep(0.25)
+            current_results = get_pipes_messages(pipe_conns)
 
             if not current_results:
                 continue
@@ -111,7 +97,6 @@ class Simulation:
 
             best_individual = Individual(self.world, path=best_overall_path)
             self.best_individual = best_individual
-
 
 
     def has_converged(self):
@@ -254,7 +239,7 @@ def run_basic_simulation():
     world = World()
 
     sim = Simulation(world)
-    sim.run_multiprocess_simulation(7)
+    sim.run_multiprocess_simulation(3)
 
 
 def run_plotted_simulation(num_processes=None):
