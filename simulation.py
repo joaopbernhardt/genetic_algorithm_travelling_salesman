@@ -1,5 +1,7 @@
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Process, Pipe
 from random import randint, random, shuffle
 
 from matplotlib import pyplot, animation
@@ -7,7 +9,9 @@ from matplotlib import pyplot, animation
 import settings
 from individual import Individual, Generation
 from world import World
-from multiprocessing_utils import get_last_message, get_pipes_messages, any_process_alive
+from multiprocessing_utils import (
+    get_last_message, get_pipes_messages, any_process_alive,
+    validate_and_get_num_processes)
 
 
 class Simulation:
@@ -16,14 +20,15 @@ class Simulation:
     contains the loop which creates and evaluates generations,
     performs the crossovers, mutations.
     """
-    def __init__(self, world):
+    def __init__(self, world, process_num=None):
         self.world = world
         self.generation = Generation(world, random=True)
+        self.process_string = f"(Process {process_num})" if process_num else ""
 
         self.best_distances = []  # Best results for each generation
 
     def run_simulation(self, pipe_conn=None):
-        print('--- STARTING SIMULATION --- ')
+        print(f'--- STARTING SIMULATION {self.process_string}---')
 
         for generation_number in range(1, settings.NUM_GENERATIONS+1):
             # Creates a new generation based on the previous one
@@ -58,26 +63,31 @@ class Simulation:
     def run_multiprocess_simulation(self, num_processes):
         world = getattr(self, 'world', World())
         pipe_conns, processes = [], []
-        from multiprocessing import Process, Pipe
 
-        for _ in range(num_processes):
-            # Prepares the simulation to be started
-            sim = Simulation(world)
+        for process_num in range(1, num_processes+1):
+            # Prepares a new simulation in this world
+            sim = Simulation(world, process_num)
 
+            # Pipes for receiving the results
             parent_conn, child_conn = Pipe()
             pipe_conns.append(parent_conn)
 
-            p = Process(target=sim.run_simulation, args=(child_conn,))
+            p = Process(
+                target=sim.run_simulation,
+                args=(child_conn,),
+            )
             processes.append(p)
             p.start()
 
-        import time
+        # Grabs the pipes' messages while the processes are running,
+        # saving the results into this Simulation object
         all_results = []
         while any_process_alive(processes):
             time.sleep(0.25)
             current_results = get_pipes_messages(pipe_conns)
 
             if not current_results:
+                # No new messages
                 continue
 
             this_best_distance = min([res['best_distance'] for res in current_results])
@@ -224,11 +234,11 @@ class Simulation:
 
     def print_stats(self, generation_number, this_best_distance):
         if generation_number == settings.NUM_GENERATIONS:
-            print(f'\n\n--- END OF SIMULATION ---')
+            print(f'\n\n--- END OF SIMULATION {self.process_string} ---')
             print(f"Best individual's distance: {'{0:.2f}m'.format(self.best_distance)}")
             print(f"Best individual's path: {self.best_individual.printable_path}")
         elif generation_number%(settings.NUM_GENERATIONS/100) == 0:
-            print(f'\nGeneration number {generation_number}')
+            print(f'\nGeneration number {generation_number} {self.process_string}')
             print(f'Best across generations: {"{0:.2f}m".format(self.best_distance)}')
             print(f'Best of generation {generation_number}: {"{0:.2f}m".format(this_best_distance)}')
             # print(f'List of distances: {["{0:.2f}m".format(t.distance) for t in self.generation.ranked_individuals]}')
@@ -239,10 +249,12 @@ def run_basic_simulation():
     world = World()
 
     sim = Simulation(world)
-    sim.run_multiprocess_simulation(3)
+    sim.run_simulation()
 
 
-def run_plotted_simulation(num_processes=None):
+def run_plotted_simulation(num_processes="max"):
+    num_processes = validate_and_get_num_processes(num_processes)
+
     # Initializes a new world
     world = World()
 
@@ -284,10 +296,11 @@ def run_plotted_simulation(num_processes=None):
     # Spawns a new thread for executing the simulation,
     # enabling the program to dynamically plot the best individual.
     with ThreadPoolExecutor(max_workers=1) as executor:
-        if num_processes:
+        if num_processes > 1:
             executor.submit(sim.run_multiprocess_simulation, num_processes)
         else:
             executor.submit(sim.run_simulation)
+
         anim = animation.FuncAnimation(fig, animate, interval=250)
 
         # Uncomment this to save the animation
