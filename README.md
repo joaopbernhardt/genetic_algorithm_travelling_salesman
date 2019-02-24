@@ -18,5 +18,6 @@ The idea is to find the shortest path from Original City, passing through all th
 
 The problem/GA configs are set on `settings.py`, so you can change it as you wish.
 
+![Demonstration gif](tsp_25_locations.gif)
 
 [This readme is still being written... Please contact me for more information!]
