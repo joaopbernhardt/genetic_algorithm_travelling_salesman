@@ -19,7 +19,4 @@ The idea is to find the shortest path from Original City, passing through all th
 The problem/GA configs are set on `settings.py`, so you can change it as you wish.
 
 
-![Demonstration with 25 locations](https://im.ezgif.com/tmp/ezgif-1-6456069b2b02.gif)
-
-
-[This readme is still being written... Please contact me for more information if you wish!]
+[This readme is still being written... Please contact me for more information!]
